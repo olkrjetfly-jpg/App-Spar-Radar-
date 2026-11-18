@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App-Sparer: EDEKA Laage & Netto Güstrow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased pb-24">
+
+  <!-- Kopfbereich mit Märkten -->
+  <header class="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200">
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-black text-slate-900 flex items-center gap-1.5">
+          <span class="text-amber-500">📍</span> App-Spar-Radar Laage & Güstrow
+        </h1>
+        <p class="text-xs text-slate-500">Exklusive App-Aktivierungspreise</p>
+      </div>
+      <button onclick="toggleShoppingList()" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow">
+        <span>🛒 Zettel</span>
+        <span id="cartCountBadge" class="bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full text-[10px] font-black hidden">0</span>
+      </button>
+    </div>
+
+    <!-- Suchfeld -->
+    <div class="max-w-md mx-auto px-4 pb-2.5">
+      <input 
+        id="searchInput" 
+        type="text" 
+        placeholder="Produkt suchen (z.B. Kaffee, Pizza, Chips)..." 
+        class="w-full bg-slate-100 text-sm px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900"
+        oninput="renderDeals()"
+      />
+    </div>
+
+    <!-- Markt-Filter -->
+    <div class="max-w-md mx-auto px-4 pb-3 flex gap-2 overflow-x-auto">
+      <button onclick="setFilter('all')" id="btn-all" class="filter-btn text-xs font-bold px-3 py-1.5 rounded-full bg-slate-900 text-white whitespace-nowrap">
+        Alle (24)
+      </button>
+      <button onclick="setFilter('edeka_laage')" id="btn-edeka_laage" class="filter-btn text-xs font-bold px-3 py-1.5 rounded-full bg-white text-slate-700 border border-slate-200 flex items-center gap-1 whitespace-nowrap">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span> EDEKA Laage (23)
+      </button>
+      <button onclick="setFilter('netto_guestrow')" id="btn-netto_guestrow" class="filter-btn text-xs font-bold px-3 py-1.5 rounded-full bg-white text-slate-700 border border-slate-200 flex items-center gap-1 whitespace-nowrap">
+        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-red-500"></span> Netto Güstrow (1)
+      </button>
+    </div>
+  </header>
+
+  <!-- Hauptliste der Angebote -->
+  <main class="max-w-md mx-auto px-4 pt-3">
+    <div class="flex items-center justify-between mb-2.5 text-xs text-slate-500 font-medium">
+      <span id="dealCount">Lade Angebote...</span>
+      <span>Aktuelle App-Woche</span>
+    </div>
+
+    <div id="dealsContainer" class="space-y-3"></div>
+  </main>
+
+  <!-- Einkaufszettel Modal -->
+  <div id="cartModal" class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="font-black text-slate-900">🛒 Dein Einkaufszettel</h2>
+          <p class="text-xs text-slate-500">Vor der Kasse in der App aktivieren & abhaken!</p>
+        </div>
+        <button onclick="toggleShoppingList()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold">✕</button>
+      </div>
+
+      <div class="bg-emerald-50 border-b border-emerald-100 p-3 px-4 flex items-center justify-between text-xs font-semibold text-emerald-900">
+        <span>Deine Ersparnis mit den Apps:</span>
+        <span id="totalSavings" class="text-sm font-black text-emerald-600">0,00 €</span>
+      </div>
+
+      <div id="cartItemsList" class="p-4 overflow-y-auto space-y-2 flex-1"></div>
+
+      <div class="p-3 bg-slate-50 border-t border-slate-100">
+        <button onclick="clearCart()" class="w-full py-2 text-xs text-rose-600 font-bold hover:bg-rose-50 rounded-xl">
+          Zettel leeren
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DEINE 24 ANGEBOTE SAUBER ÜBERSETZT
+    const dealsData = [
+      {
+        id: 1,
+        store: "netto_guestrow",
+        storeName: "Netto Gelb • Güstrow",
+        badgeStyle: "bg-yellow-400 text-slate-900 border border-red-500",
+        appInfo: "In Netto App aktivieren",
+        title: "Ritter Sport Bunte Vielfalt",
+        unit: "100 g Tafel",
+        normalPrice: 0.99,
+        appPrice: 0.88,
+        category: "Süßwaren"
+      },
+      {
+        id: 2,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Storteboom Hähnchenbrustfilet HKL A",
+        unit: "an der Theke • 100 g",
+        normalPrice: 1.49,
+        appPrice: 0.88,
+        category: "Fleisch & Wurst"
+      },
+      {
+        id: 3,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren (ab 19.11.)",
+        title: "Kerrygold irischer Käse",
+        unit: "120–150 g Packung",
+        normalPrice: 2.99,
+        appPrice: 1.29,
+        category: "Kühltheke"
+      },
+      {
+        id: 4,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Ehrmann Almighurt",
+        unit: "150 g Becher",
+        normalPrice: 0.89,
+        appPrice: 0.29,
+        category: "Kühltheke"
+      },
+      {
+        id: 5,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Danone Activia",
+        unit: "345–460 g Packung",
+        normalPrice: 2.79,
+        appPrice: 1.29,
+        category: "Kühltheke"
+      },
+      {
+        id: 6,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Dr. Oetker Ristorante, Piccola, Bistro Flammkuchen",
+        unit: "265–410 g",
+        normalPrice: 3.49,
+        appPrice: 1.66,
+        category: "Tiefkühl"
+      },
+      {
+        id: 7,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Frosta Fertiggerichte à la Carte / High Protein",
+        unit: "450–500 g Beutel",
+        normalPrice: 5.99,
+        appPrice: 4.19,
+        category: "Tiefkühl"
+      },
+      {
+        id: 8,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Frosta Schlemmerfilet / Fischstäbchen",
+        unit: "240–450 g Packung",
+        normalPrice: 4.99,
+        appPrice: 2.99,
+        category: "Tiefkühl"
+      },
+      {
+        id: 9,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Ben & Jerry's Ice Cream",
+        unit: "438–465 ml Becher",
+        normalPrice: 6.99,
+        appPrice: 3.99,
+        category: "Eis & Tiefkühl"
+      },
+      {
+        id: 10,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Maggi italienische Pastaspezialitäten",
+        unit: "800 g Dose",
+        normalPrice: 2.99,
+        appPrice: 1.49,
+        category: "Konserven & Pasta"
+      },
+      {
+        id: 11,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Rapso Rapsöl",
+        unit: "750 ml Flasche",
+        normalPrice: 4.99,
+        appPrice: 3.49,
+        category: "Öl & Essig"
+      },
+      {
+        id: 12,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Barilla Pasta Sauce Spezialität",
+        unit: "400 g Glas",
+        normalPrice: 4.29,
+        appPrice: 2.69,
+        category: "Sauce & Pasta"
+      },
+      {
+        id: 13,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Barilla Pasta Sauce oder Pesto",
+        unit: "400 ml / 190–200 g Glas",
+        normalPrice: 3.49,
+        appPrice: 1.69,
+        category: "Sauce & Pasta"
+      },
+      {
+        id: 14,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Senseo Kaffeepads",
+        unit: "83–125 g Packung",
+        normalPrice: 3.99,
+        appPrice: 1.99,
+        category: "Kaffee"
+      },
+      {
+        id: 15,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Melitta Barista Kaffeebohnen",
+        unit: "1 kg Beutel",
+        normalPrice: 17.99,
+        appPrice: 10.99,
+        category: "Kaffee"
+      },
+      {
+        id: 16,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Lay's Max Kartoffelchips / Kartoffelchips",
+        unit: "110 / 150 g Beutel",
+        normalPrice: 1.99,
+        appPrice: 0.99,
+        category: "Knabberartikel"
+      },
+      {
+        id: 17,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Chester's, Lay's Bugles, Doritos",
+        unit: "75–110 g Beutel",
+        normalPrice: 1.99,
+        appPrice: 0.99,
+        category: "Knabberartikel"
+      },
+      {
+        id: 18,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Nestlé Choco Crossies / Choclait Chips",
+        unit: "115–150 g Packung",
+        normalPrice: 3.79,
+        appPrice: 1.49,
+        category: "Süßwaren"
+      },
+      {
+        id: 19,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Nestlé Riegel (versch. Sorten)",
+        unit: "136,8–168 g Packung",
+        normalPrice: 2.99,
+        appPrice: 1.49,
+        category: "Süßwaren"
+      },
+      {
+        id: 20,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Carefree Slipeinlagen",
+        unit: "24–56 Stück Packung",
+        normalPrice: 2.99,
+        appPrice: 1.99,
+        category: "Drogerie"
+      },
+      {
+        id: 21,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Odol med 3 Zahncreme",
+        unit: "125 ml Tube",
+        normalPrice: 1.99,
+        appPrice: 1.19,
+        category: "Drogerie"
+      },
+      {
+        id: 22,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Rexona Deo Spray",
+        unit: "150 ml Dose",
+        normalPrice: 2.45,
+        appPrice: 1.99,
+        category: "Drogerie"
+      },
+      {
+        id: 23,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Jean & Len Handseife Rosemary/Ginger",
+        unit: "250 ml Spender",
+        normalPrice: 3.99,
+        appPrice: 3.89,
+        category: "Drogerie"
+      },
+      {
+        id: 24,
+        store: "edeka_laage",
+        storeName: "EDEKA • Laage",
+        badgeStyle: "bg-blue-600 text-white",
+        appInfo: "In EDEKA App aktivieren",
+        title: "Perfect Fit Katzen-Trockennahrung",
+        unit: "750 g Beutel",
+        normalPrice: 3.99,
+        appPrice: 2.79,
+        category: "Tiernahrung"
+      }
+    ];
+
+    let currentFilter = 'all';
+    let cart = JSON.parse(localStorage.getItem('radarCart') || '[]');
+
+    function renderDeals() {
+      const container = document.getElementById('dealsContainer');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      
+      const filtered = dealsData.filter(d => {
+        const matchesFilter = (currentFilter === 'all') || (d.store === currentFilter);
+        const matchesSearch = d.title.toLowerCase().includes(search) || d.category.toLowerCase().includes(search);
+        return matchesFilter && matchesSearch;
+      });
+
+      document.getElementById('dealCount').innerText = `${filtered.length} Angebote gefunden`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-2xl text-center border border-slate-200 text-slate-400 text-xs">Keine passenden Angebote gefunden.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(d => {
+        const diff = (d.normalPrice - d.appPrice).toFixed(2);
+        const percent = Math.round(((d.normalPrice - d.appPrice) / d.normalPrice) * 100);
+        const isInCart = cart.some(i => i.id === d.id);
+
+        return `
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[11px] font-black px-2 py-0.5 rounded-md ${d.badgeStyle}">
+                ${d.storeName}
+              </span>
+              <span class="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                -${percent}% mit App
+              </span>
+            </div>
+
+            <h3 class="font-bold text-slate-900 text-sm">${d.title}</h3>
+            <p class="text-xs text-slate-400 mb-2">${d.unit} • <span class="text-slate-500 font-medium">${d.category}</span></p>
+
+            <div class="flex items-baseline gap-2 mb-2">
+              <div>
+                <span class="text-[10px] text-slate-400 uppercase font-bold">App-Preis:</span>
+                <span class="text-lg font-black text-emerald-600 block">${d.appPrice.toFixed(2).replace('.', ',')} €</span>
+              </div>
+              <div class="ml-2">
+                <span class="text-[10px] text-slate-400 uppercase font-bold">Normal:</span>
+                <span class="text-xs text-slate-400 line-through block">${d.normalPrice.toFixed(2).replace('.', ',')} €</span>
+              </div>
+              <div class="ml-auto text-right">
+                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
+                  Sparst: ${diff.replace('.', ',')} €
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-1.5 rounded-lg mb-2 text-[11px] text-slate-600 flex items-center gap-1 font-medium">
+              📲 ${d.appInfo}
+            </div>
+
+            <button 
+              onclick="toggleCartItem(${d.id})" 
+              class="w-full py-2 rounded-xl text-xs font-bold transition ${
+                isInCart ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
+              }">
+              ${isInCart ? '✓ Auf deinem Merkzettel' : '+ Auf Merkzettel'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setFilter(store) {
+      currentFilter = store;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-slate-900', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-700');
+      });
+      const active = document.getElementById(`btn-${store}`);
+      if (active) {
+        active.classList.remove('bg-white', 'text-slate-700');
+        active.classList.add('bg-slate-900', 'text-white');
+      }
+      renderDeals();
+    }
+
+    function toggleCartItem(id) {
+      const idx = cart.findIndex(i => i.id === id);
+      if (idx > -1) {
+        cart.splice(idx, 1);
+      } else {
+        const item = dealsData.find(d => d.id === id);
+        if (item) cart.push({...item, done: false});
+      }
+      localStorage.setItem('radarCart', JSON.stringify(cart));
+      updateBadge();
+      renderDeals();
+      renderCart();
+    }
+
+    function updateBadge() {
+      const badge = document.getElementById('cartCountBadge');
+      if (cart.length > 0) {
+        badge.innerText = cart.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function toggleShoppingList() {
+      document.getElementById('cartModal').classList.toggle('hidden');
+      renderCart();
+    }
+
+    function toggleCheck(id) {
+      const item = cart.find(i => i.id === id);
+      if (item) {
+        item.done = !item.done;
+        localStorage.setItem('radarCart', JSON.stringify(cart));
+        renderCart();
+      }
+    }
+
+    function clearCart() {
+      cart = [];
+      localStorage.setItem('radarCart', JSON.stringify(cart));
+      updateBadge();
+      renderDeals();
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cartItemsList');
+      const totalEl = document.getElementById('totalSavings');
+
+      if (cart.length === 0) {
+        list.innerHTML = `<p class="text-center text-xs text-slate-400 py-6">Dein Merkzettel ist leer.</p>`;
+        totalEl.innerText = "0,00 €";
+        return;
+      }
+
+      let total = 0;
+      list.innerHTML = cart.map(item => {
+        const diff = item.normalPrice - item.appPrice;
+        total += diff;
+        return `
+          <div class="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-white ${item.done ? 'opacity-50 line-through' : ''}">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleCheck(${item.id})" class="w-4 h-4 rounded" />
+              <div>
+                <p class="text-xs font-bold text-slate-900">${item.title}</p>
+                <p class="text-[10px] text-slate-400">${item.storeName} • ${item.appPrice.toFixed(2).replace('.', ',')} €</p>
+              </div>
+            </div>
+            <span class="text-xs font-black text-emerald-600">+${diff.toFixed(2).replace('.', ',')} €</span>
+          </div>
+        `;
+      }).join('');
+
+      totalEl.innerText = `${total.toFixed(2).replace('.', ',')} €`;
+    }
+
+    updateBadge();
+    renderDeals();
+  </script>
+</body>
+</html>
